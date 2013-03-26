@@ -61,7 +61,7 @@ class Collection(object):
         if query is None:
             query = '*'
 
-        # Pepare elastic search queries.
+        # Prepare elastic search queries.
         params = {}
         for (k, v) in kwargs.items():
             params['es_{0}'.format(k)] = v
