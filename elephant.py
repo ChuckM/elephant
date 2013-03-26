@@ -70,7 +70,7 @@ class Collection(object):
 
         q = {
             'sort': [
-                {"epoch" : {"order" : "desc"}},
+                {"epoch": {"order": "desc"}},
             ]
         }
 
@@ -93,7 +93,8 @@ class Collection(object):
         return [r for r in self.iter_search(query, **kwargs)]
 
     def save(self):
-        # return requests.post('{}/{}'.format(ELASTICSEARCH_URL, self.name), auth=ES_AUTH)
+        # url_path = '{}/{}'.format(ELASTICSEARCH_URL, self.name)
+        # return requests.post(url_path), auth=ES_AUTH)
         try:
             return ES.create_index(self.name)
         except IndexAlreadyExistsError:
@@ -103,7 +104,6 @@ class Collection(object):
         r = Record()
         r.collection_name = self.name
         return r
-
 
 
 class Record(object):
@@ -116,8 +116,8 @@ class Record(object):
         self.collection_name = None
 
     def __repr__(self):
-        return "<Record:{0}:{1} {2}>".format(
-                self.collection_name, self.uuid, repr(self.data))
+        return "<Record:{0}:{1} {2}>".format(self.collection_name,
+                                             self.uuid, repr(self.data))
 
     def __getitem__(self, *args, **kwargs):
         return self.data.__getitem__(*args, **kwargs)
@@ -143,7 +143,8 @@ class Record(object):
 
     def _index(self):
         """Saves the Record to Elastic Search."""
-        return ES.index(self.collection.name, 'record', self.dict, id=self.uuid)
+        return ES.index(self.collection.name, 'record',
+                        self.dict, id=self.uuid)
 
     @property
     def dict(self):
@@ -177,6 +178,7 @@ class Record(object):
 
         return r
 
+
 @manager.command
 def seed():
     """Seeds the index from the configured S3 Bucket."""
@@ -193,14 +195,16 @@ def seed():
 
     print 'Indexing...'
     for key in progress.bar([k for k in BUCKET.list()]):
-         r = Record._from_uuid(key.name)
-         r._index()
+        r = Record._from_uuid(key.name)
+        r._index()
+
 
 @manager.command
 def purge():
     """Seeds the index from the configured S3 Bucket."""
     print 'Deleting all indexes...'
     ES.delete_all_indexes()
+
 
 @app.before_request
 def require_apikey():
@@ -211,17 +215,21 @@ def require_apikey():
 
     valid_key_param = request.args.get('key') == API_KEY
     valid_key_header = request.headers.get('X-Key') == API_KEY
-    valid_basic_pass = request.authorization.password == API_KEY if request.authorization else False
+
+    if request.authorization:
+        valid_basic_pass = request.authorization.password == API_KEY
+    else:
+        valid_basic_pass = False
 
     if not (valid_key_param or valid_key_header or valid_basic_pass):
         return '>_<', 403
 
+
 @app.route('/login')
 def login_challenge():
-    return Response(
-    'Could not verify your access level for that URL.\n'
-    'You have to login with proper credentials', 401,
-    {'WWW-Authenticate': 'Basic realm="Login Required"'})
+    return Response('Could not verify your access level for that URL.\n'
+                    'You have to login with proper credentials', 401,
+                    {'WWW-Authenticate': 'Basic realm="Login Required"'})
 
 
 @app.route('/<collection>/')
@@ -238,6 +246,7 @@ def get_collection(collection):
 
     return jsonify(records=[r.dict for r in results])
 
+
 @app.route('/<collection>/', methods=['POST', 'PUT'])
 def post_collection(collection):
     """Add a new record to a given collection."""
@@ -250,10 +259,12 @@ def post_collection(collection):
 
     return get_record(collection, record.uuid)
 
+
 @app.route('/<collection>/<uuid>')
 def get_record(collection, uuid):
     """Get a record from a given colection."""
     return jsonify(record=Collection(collection)[uuid].dict)
+
 
 @app.route('/<collection>/<uuid>', methods=['POST'])
 def post_record(collection, uuid):
@@ -264,6 +275,7 @@ def post_record(collection, uuid):
 
     return get_record(collection, uuid)
 
+
 @app.route('/<collection>/<uuid>', methods=['PUT'])
 def put_record(collection, uuid):
     """Updates a given Record."""
@@ -273,6 +285,7 @@ def put_record(collection, uuid):
     record.save()
 
     return get_record(collection, uuid)
+
 
 @app.route('/<collection>/<uuid>', methods=['DELETE'])
 def delete_record(collection, uuid):
